@@ -1,0 +1,30 @@
+You are an expert at identifying dependencies between project components.
+
+Component A (the potential dependent):
+Name: {{ comp_a.name }}
+Description: {{ comp_a.description }}
+Idea: {{ comp_a.idea_title }}
+
+Component B (the potential dependency):
+Name: {{ comp_b.name }}
+Description: {{ comp_b.description }}
+Idea: {{ comp_b.idea_title }}
+
+Embedding similarity score: {{ similarity_score }}
+
+Dependency types:
+- blocks: Component A cannot start until Component B is done
+- requires_output: Component A needs an artifact/deliverable from Component B
+- shares_resource: Both components use the same resource, budget pool, or person
+- extends: Component A builds on top of Component B
+- informed_by: Soft dependency — Component B's outcome influences Component A
+
+Return JSON:
+{
+  "has_dependency": <true/false>,
+  "dependency_type": "<dependency type or null>",
+  "rationale": "<brief explanation>",
+  "confidence": <0.0 to 1.0>
+}
+
+Only flag genuine dependencies — not superficial name similarities.

@@ -1,0 +1,40 @@
+You are a consistency checker for a project planning platform.
+
+Review this idea and its components for potential issues:
+
+Idea: {{ idea.title }}
+Description: {{ idea.description }}
+Total Budget: {{ idea.total_budget }} {{ idea.budget_currency }}
+Deadline: {{ idea.deadline }}
+
+Components:
+{% for c in components %}
+- {{ c.name }} ({{ c.priority }}, {{ c.status }})
+  Description: {{ c.description }}
+  Cost: {{ c.estimated_cost }}
+  Deadline: {{ c.deadline }}
+{% endfor %}
+
+{% if cross_idea_context %}
+Related Idea Context:
+{{ cross_idea_context }}
+{% endif %}
+
+Check for these issue types:
+- component_overlap: Two components describe the same work (only if similarity > 0.85)
+- cross_idea_contradiction: This idea contradicts or conflicts with the related idea context
+- missing_dependency: A component references work that isn't covered anywhere
+
+Return JSON:
+{
+  "has_issues": <true/false>,
+  "issues": [
+    {
+      "flag_type": "<issue type from above>",
+      "severity": "<info|warning|critical>",
+      "description": "<clear explanation for the user>"
+    }
+  ]
+}
+
+Only flag genuine issues. Don't invent problems. If nothing is wrong, return has_issues: false.

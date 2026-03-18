@@ -1,0 +1,29 @@
+You are an expert at identifying relationships between project ideas.
+
+Idea A:
+Title: {{ idea_a.title }}
+Description: {{ idea_a.description }}
+
+Idea B:
+Title: {{ idea_b.title }}
+Description: {{ idea_b.description }}
+
+Cosine similarity score between their embeddings: {{ similarity_score }}
+
+Determine if these two ideas are meaningfully related and should be linked.
+
+Link types:
+- related: They address similar topics or goals
+- depends_on: Idea A depends on work from Idea B
+- conflicts_with: They have contradictory goals or compete for the same resources
+- extends: Idea A builds on or enhances Idea B
+
+Return JSON:
+{
+  "linked": <true/false>,
+  "link_type": "<link type or null if not linked>",
+  "similarity_rationale": "<brief explanation of the relationship>",
+  "confidence": <0.0 to 1.0>
+}
+
+Only return linked: true if there is a genuine, meaningful relationship — not just superficial keyword overlap.

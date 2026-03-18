@@ -35,8 +35,10 @@ def create_app() -> FastAPI:
 
     # Register API routers
     from app.api.v1.router import router as v1_router
+    from app.api.ws.planning import router as ws_router
 
     app.include_router(v1_router, prefix="/api/v1")
+    app.include_router(ws_router, prefix="/api/v1")
 
     return app
 
