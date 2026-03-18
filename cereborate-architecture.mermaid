@@ -1,0 +1,95 @@
+graph TB
+    subgraph "Layer 1: Planning Interface"
+        GUI["Web GUI<br/>(Next.js + React)"]
+        CLI["CLI REPL<br/>(Typer + Rich)"]
+        API_EXT["REST API<br/>(Headless)"]
+        TOGGLE["Mode Toggle<br/>Chat ↔ Form"]
+        
+        GUI --> TOGGLE
+        TOGGLE --> PS
+        CLI --> PS
+        API_EXT --> PS
+        
+        PS["Planning Service<br/>(FastAPI)"]
+    end
+
+    subgraph "Layer 2: The Brain"
+        KE["Knowledge Engine"]
+        
+        subgraph "Storage"
+            PG["PostgreSQL 16<br/>+ pgvector"]
+            RD["Redis 7<br/>Cache + Queue"]
+        end
+        
+        subgraph "Intelligence"
+            LS["Linking Service<br/>(Embedding Similarity)"]
+            DS["Dependency Service<br/>(DAG + Auto-Exposure)"]
+            CS["Consistency Checker<br/>(Advisory Mode)"]
+            SS["Shareability Scorer<br/>(Auto-Classification)"]
+        end
+        
+        subgraph "Async Workers"
+            CL["Celery Workers"]
+        end
+        
+        PS --> KE
+        KE --> PG
+        KE --> RD
+        KE --> LS
+        KE --> DS
+        KE --> CS
+        KE --> SS
+        LS --> DS
+        DS --> CS
+        LS --> CL
+        DS --> CL
+        CS --> CL
+        SS --> CL
+    end
+
+    subgraph "Layer 3: Team Interface"
+        TP["Collaboration Portal<br/>(Next.js)"]
+        SF["Shared Ideas<br/>(Access-Filtered)"]
+        SD["Shared Dependencies<br/>(Cross-Idea Auto-Exposed)"]
+        QA["Q&A System"]
+        NF["Notifications"]
+        
+        TP --> SF
+        TP --> SD
+        TP --> QA
+        TP --> NF
+        SF --> KE
+        SD --> DS
+        QA --> KE
+    end
+
+    subgraph "LLM Backbone"
+        OL["Ollama (Local)<br/>or vLLM (Cloud)"]
+        Q8["Qwen3-8B<br/>Planning + Reasoning<br/>+ Dep Detection"]
+        Q2["Qwen3-1.7B<br/>Classification"]
+        NE["nomic-embed-text<br/>Embeddings"]
+        
+        OL --> Q8
+        OL --> Q2
+        OL --> NE
+    end
+    
+    PS --> OL
+    LS --> NE
+    DS --> Q8
+    DS --> NE
+    CS --> Q8
+    SS --> Q2
+
+    style GUI fill:#4F46E5,color:#fff
+    style CLI fill:#4F46E5,color:#fff
+    style TP fill:#059669,color:#fff
+    style PG fill:#336791,color:#fff
+    style RD fill:#DC382D,color:#fff
+    style OL fill:#F59E0B,color:#000
+    style Q8 fill:#FCD34D,color:#000
+    style Q2 fill:#FCD34D,color:#000
+    style NE fill:#FCD34D,color:#000
+    style KE fill:#7C3AED,color:#fff
+    style DS fill:#EC4899,color:#fff
+    style SD fill:#EC4899,color:#fff
