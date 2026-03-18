@@ -1,0 +1,114 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: cereborate
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cereborate
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cereborate"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cereborate:password@postgres:5432/cereborate
+      REDIS_URL: redis://redis:6379/0
+      LLM_BACKEND: ollama
+      LLM_BASE_URL: http://ollama:11434/v1
+      LLM_PLANNING_MODEL: qwen3:8b
+      LLM_CLASSIFIER_MODEL: qwen3:1.7b
+      LLM_EMBEDDING_MODEL: nomic-embed-text
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRY_MINUTES: "60"
+      APP_ENV: ${APP_ENV:-development}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cereborate:password@postgres:5432/cereborate
+      REDIS_URL: redis://redis:6379/0
+      LLM_BACKEND: ollama
+      LLM_BASE_URL: http://ollama:11434/v1
+      LLM_PLANNING_MODEL: qwen3:8b
+      LLM_CLASSIFIER_MODEL: qwen3:1.7b
+      LLM_EMBEDDING_MODEL: nomic-embed-text
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      APP_ENV: ${APP_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret}
+      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+volumes:
+  postgres_data:
+  ollama_data:

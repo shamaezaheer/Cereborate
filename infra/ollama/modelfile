@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-pull required Ollama models for Cereborate
+# Run this after `docker compose up ollama`
+
+set -e
+
+OLLAMA_HOST=${OLLAMA_HOST:-http://localhost:11434}
+
+echo "Pulling Cereborate LLM models..."
+
+echo "→ Pulling qwen3:8b (planning, reasoning, consistency, Q&A)..."
+ollama pull qwen3:8b
+
+echo "→ Pulling qwen3:1.7b (shareability classification)..."
+ollama pull qwen3:1.7b
+
+echo "→ Pulling nomic-embed-text (768-dim embeddings)..."
+ollama pull nomic-embed-text
+
+echo "✓ All models ready."
