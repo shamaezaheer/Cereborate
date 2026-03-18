@@ -10,7 +10,7 @@ from app.config import settings
 from app.models.base import Base  # noqa: F401 — ensures all models are imported
 
 # Import all models so Alembic can detect them
-from app.models import budget, idea, user  # noqa: F401
+from app.models import budget, consistency, dependency, idea, link, user  # noqa: F401
 
 config = context.config
 
