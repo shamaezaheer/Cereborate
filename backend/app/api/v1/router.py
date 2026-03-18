@@ -8,6 +8,7 @@ from app.api.v1.ideas import router as ideas_router
 from app.api.v1.links import router as links_router
 from app.api.v1.planning import router as planning_router
 from app.api.v1.shareability import router as shareability_router
+from app.api.v1.team import router as team_router
 
 router = APIRouter()
 
@@ -19,6 +20,4 @@ router.include_router(links_router)
 router.include_router(dependencies_router)
 router.include_router(consistency_router)
 router.include_router(shareability_router)
-
-# Phase 5+ routers:
-# from app.api.v1.team import router as team_router
+router.include_router(team_router)

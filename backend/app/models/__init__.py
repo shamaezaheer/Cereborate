@@ -2,8 +2,10 @@ from app.models.base import Base
 from app.models.budget import Budget, BudgetLineItem
 from app.models.consistency import ConsistencyFlag
 from app.models.dependency import ComponentDependency
+from app.models.discussion import Answer, Question
 from app.models.idea import Idea, IdeaComponent, IdeaVersion, PlanningSession
 from app.models.link import IdeaLink
+from app.models.notification import Notification
 from app.models.shareability import AccessGrant, ShareabilityRule
 from app.models.user import Tenant, TenantMembership, User
 
@@ -20,4 +22,7 @@ __all__ = [
     "BudgetLineItem",
     "ShareabilityRule",
     "AccessGrant",
+    "Question",
+    "Answer",
+    "Notification",
 ]
