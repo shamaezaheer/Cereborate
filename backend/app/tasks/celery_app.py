@@ -11,6 +11,7 @@ celery_app = Celery(
         "app.tasks.dependency_tasks",
         "app.tasks.consistency_tasks",
         "app.tasks.notification_tasks",
+        "app.tasks.shareability_tasks",
     ],
 )
 
