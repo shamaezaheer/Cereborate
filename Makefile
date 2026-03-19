@@ -63,6 +63,22 @@ pull-models:
 	docker compose exec ollama ollama pull qwen3-1.7b
 	docker compose exec ollama ollama pull nomic-embed-text
 
+# Production
+prod-up:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+prod-up-build:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+prod-down:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+
+prod-migrate:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml exec backend alembic upgrade head
+
+prod-logs:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
+
 # CLI
 cli:
 	cd backend && uv run cereborate

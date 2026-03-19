@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/cereborate
+
+            # Pull latest images
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            # Start/restart services
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Run database migrations
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              exec -T backend alembic upgrade head
+
+            # Verify health
+            sleep 10
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+            echo "Deployment complete."

@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,6 +11,7 @@ from app.deps import get_current_user_id, get_db
 from app.models.idea import Idea, IdeaStatus, IdeaVersion
 from app.models.user import TenantMembership
 from app.schemas.idea import IdeaCreate, IdeaDetailResponse, IdeaResponse, IdeaUpdate
+from app.services.export_service import ExportService
 
 router = APIRouter(prefix="/ideas", tags=["ideas"])
 
@@ -136,3 +138,44 @@ async def archive_idea(
     idea = await _get_idea_or_404(idea_id, tenant_id, db)
     idea.status = IdeaStatus.archived
     await db.commit()
+
+
+@router.get("/{idea_id}/export")
+async def export_idea(
+    idea_id: uuid.UUID,
+    format: str = Query(default="json", pattern="^(json|csv|markdown)$"),
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export an idea as JSON, CSV, or Markdown. Only the idea owner can export."""
+    tenant_id = await _get_tenant_id(user_id, db)
+    idea = await _get_idea_or_404(idea_id, tenant_id, db)
+
+    if str(idea.creator_id) != user_id:
+        raise HTTPException(status_code=403, detail="Only the idea owner can export")
+
+    svc = ExportService(db)
+    slug = idea.title.lower().replace(" ", "-")[:40]
+
+    if format == "json":
+        import json
+        data = await svc.export_idea_json(idea_id, tenant_id)
+        return Response(
+            content=json.dumps(data, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{slug}.json"'},
+        )
+    elif format == "csv":
+        content = await svc.export_idea_csv(idea_id, tenant_id)
+        return Response(
+            content=content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{slug}.csv"'},
+        )
+    else:  # markdown
+        content = await svc.export_idea_markdown(idea_id, tenant_id)
+        return Response(
+            content=content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{slug}.md"'},
+        )

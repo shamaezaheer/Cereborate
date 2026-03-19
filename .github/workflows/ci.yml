@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — lint, type-check, test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cereborate
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: cereborate_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Lint (ruff)
+        run: uv run ruff check app/ cli/ tests/
+
+      - name: Type-check (mypy)
+        run: uv run mypy app/ cli/ --ignore-missing-imports
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://cereborate:password@localhost:5432/cereborate_test
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: ci-test-secret
+          LLM_BACKEND: ollama
+          LLM_BASE_URL: http://localhost:11434/v1
+          LLM_PLANNING_MODEL: qwen3:8b
+          LLM_CLASSIFIER_MODEL: qwen3:1.7b
+          LLM_EMBEDDING_MODEL: nomic-embed-text
+          APP_ENV: development
+        run: uv run pytest tests/ -v --tb=short
+
+  frontend:
+    name: Frontend — lint, build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        env:
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-secret
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build

@@ -32,5 +32,9 @@ celery_app.conf.update(
             "task": "app.tasks.linking_tasks.scan_unlinked_ideas",
             "schedule": 3600.0,  # 1 hour
         },
+        "nightly-dependency-rescan": {
+            "task": "app.tasks.dependency_tasks.nightly_dependency_rescan",
+            "schedule": 86400.0,  # 24 hours
+        },
     },
 )

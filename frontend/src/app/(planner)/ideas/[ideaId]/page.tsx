@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { useParams } from "next/navigation";
@@ -11,10 +12,13 @@ interface IdeaDetail extends Idea {
   components: IdeaComponent[];
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function IdeaDetailPage() {
   const { data: authSession } = useSession();
   const params = useParams();
   const ideaId = params.ideaId as string;
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: idea, isLoading } = useSWR(
     authSession ? `/api/v1/ideas/${ideaId}` : null,
@@ -42,11 +46,37 @@ export default function IdeaDetailPage() {
       </div>
 
       <div className="mb-8">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-4">
           <h1 className="text-3xl font-bold">{idea.title}</h1>
-          <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-            {idea.status} · v{idea.version}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+              {idea.status} · v{idea.version}
+            </span>
+            {/* Export dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setExportOpen((o) => !o)}
+                className="px-3 py-1.5 text-sm border rounded-md hover:bg-muted flex items-center gap-1"
+              >
+                Export ▾
+              </button>
+              {exportOpen && (
+                <div className="absolute right-0 mt-1 w-36 rounded-md border bg-popover shadow-md z-10">
+                  {(["json", "csv", "markdown"] as const).map((fmt) => (
+                    <a
+                      key={fmt}
+                      href={`${API_URL}/api/v1/ideas/${ideaId}/export?format=${fmt}`}
+                      download
+                      onClick={() => setExportOpen(false)}
+                      className="block px-4 py-2 text-sm hover:bg-muted first:rounded-t-md last:rounded-b-md"
+                    >
+                      {fmt.toUpperCase()}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         {idea.description && (
           <p className="text-muted-foreground mt-3">{idea.description}</p>

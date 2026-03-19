@@ -1,0 +1,114 @@
+# Production overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Key changes vs. dev:
+#   - Ollama replaced by vLLM (OpenAI-compatible, GPU-accelerated)
+#   - All services restart: always
+#   - Frontend runs built output (npm start), not dev server
+#   - Hot-reload volume mounts removed
+#   - Celery Beat scheduler added
+#   - APP_ENV=production
+
+services:
+  # vLLM replaces Ollama in production
+  vllm:
+    image: vllm/vllm-openai:latest
+    command:
+      - "--model"
+      - "Qwen/Qwen2.5-7B-Instruct"
+      - "--port"
+      - "8000"
+      - "--dtype"
+      - "float16"
+      - "--max-model-len"
+      - "8192"
+    ports:
+      - "11435:8000"
+    volumes:
+      - vllm_models:/root/.cache/huggingface
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # Remove Ollama in production — vLLM handles inference
+  ollama:
+    profiles:
+      - dev-only   # excluded from prod by not activating this profile
+
+  backend:
+    volumes: []   # no hot-reload mount
+    environment:
+      LLM_BACKEND: vllm
+      LLM_BASE_URL: http://vllm:8000/v1
+      APP_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      APP_URL: ${APP_URL}
+    depends_on:
+      vllm:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  celery-worker:
+    volumes: []
+    environment:
+      LLM_BACKEND: vllm
+      LLM_BASE_URL: http://vllm:8000/v1
+      APP_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      vllm:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cereborate:${POSTGRES_PASSWORD:-password}@postgres:5432/cereborate
+      REDIS_URL: redis://redis:6379/0
+      LLM_BACKEND: vllm
+      LLM_BASE_URL: http://vllm:8000/v1
+      LLM_PLANNING_MODEL: ${LLM_PLANNING_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      LLM_CLASSIFIER_MODEL: ${LLM_CLASSIFIER_MODEL:-Qwen/Qwen2.5-7B-Instruct}
+      LLM_EMBEDDING_MODEL: ${LLM_EMBEDDING_MODEL:-nomic-embed-text}
+      JWT_SECRET: ${JWT_SECRET}
+      APP_ENV: production
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  frontend:
+    volumes: []   # no hot-reload mount
+    command: npm run start
+    environment:
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXT_PUBLIC_API_URL: ${API_URL}
+    restart: always
+
+  postgres:
+    restart: always
+
+  redis:
+    restart: always
+
+volumes:
+  vllm_models:

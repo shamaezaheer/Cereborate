@@ -91,6 +91,30 @@ services:
       - ./backend:/app
     command: celery -A app.tasks.celery_app worker --loglevel=info
 
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cereborate:password@postgres:5432/cereborate
+      REDIS_URL: redis://redis:6379/0
+      LLM_BACKEND: ollama
+      LLM_BASE_URL: http://ollama:11434/v1
+      LLM_PLANNING_MODEL: qwen3:8b
+      LLM_CLASSIFIER_MODEL: qwen3:1.7b
+      LLM_EMBEDDING_MODEL: nomic-embed-text
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      APP_ENV: ${APP_ENV:-development}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: celery -A app.tasks.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend

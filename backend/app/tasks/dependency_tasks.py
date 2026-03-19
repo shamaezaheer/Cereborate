@@ -32,6 +32,43 @@ def detect_cross_idea_dependencies(self, idea_id: str, tenant_id: str):
         raise self.retry(exc=exc, countdown=60)
 
 
+@celery_app.task(bind=True, max_retries=3)
+def nightly_dependency_rescan(self):
+    """Nightly sweep: re-run cross-idea dependency detection for all active ideas."""
+    async def _inner():
+        from sqlalchemy import select
+
+        from app.database import AsyncSessionLocal
+        from app.llm.client import get_llm_client
+        from app.models.idea import Idea, IdeaStatus
+        from app.models.user import Tenant
+        from app.services.dependency_service import DependencyService
+
+        async with AsyncSessionLocal() as db:
+            tenants = list(await db.scalars(select(Tenant)))
+            llm = get_llm_client()
+            for tenant in tenants:
+                active_ideas = list(
+                    await db.scalars(
+                        select(Idea).where(
+                            Idea.tenant_id == tenant.id,
+                            Idea.status == IdeaStatus.active,
+                        )
+                    )
+                )
+                svc = DependencyService(db, llm)
+                for idea in active_ideas:
+                    try:
+                        await svc.detect_cross_idea_dependencies(idea.id, tenant.id)
+                    except Exception:
+                        pass  # advisory — don't abort the whole sweep
+
+    try:
+        _run(_inner())
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=300)
+
+
 @celery_app.task
 def update_component_embedding(component_id: str, tenant_id: str):
     """Generate embedding for a component and trigger dependency detection."""
